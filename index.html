@@ -353,7 +353,7 @@ function hideLoader(){
   l.classList.add('hidden');
   setTimeout(()=>{ if(l.parentNode) l.parentNode.removeChild(l); },900);
 }
-window.addEventListener('load',()=>{
+window.addEventListener('pageshow',()=>{
   document.fonts.ready.then(()=>{
     requestAnimationFrame(()=>requestAnimationFrame(()=>{
       hideLoader();
