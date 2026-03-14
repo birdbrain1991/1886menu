@@ -204,6 +204,27 @@ body{
 .hotspot-dot{
   position:relative;
 }
+
+#knife-canvas{
+  position:fixed;inset:0;z-index:500;
+  pointer-events:none;display:none;
+}
+#fish-transition{
+  position:fixed;inset:0;z-index:490;
+  display:none;
+  align-items:center;justify-content:center;
+  background:rgba(0,0,0,0);
+}
+#fish-transition img{
+  max-width:70vw;max-height:70vh;
+  object-fit:contain;
+}
+#fade-black{
+  position:fixed;inset:0;z-index:510;
+  background:#000;opacity:0;
+  pointer-events:none;
+  transition:opacity 0.8s ease;
+}
 </style>
 </head>
 <body>
@@ -213,6 +234,9 @@ body{
   <div class="loader-bar"></div>
 </div>
 <canvas id="melt-canvas"></canvas>
+<canvas id="knife-canvas"></canvas>
+<div id="fish-transition"><img id="fish-trans-img" src=""/></div>
+<div id="fade-black"></div>
 <canvas id="noise"></canvas>
 <div id="scanlines"></div>
 <div id="glitch-overlay"></div>
@@ -243,7 +267,7 @@ body{
     <!-- LORE — head area ~42%, 5% -->
     <div class="hotspot" id="hs-archive"
       style="right:0%;top:8%;transform:translateY(-50%)"
-      onclick="window.location.href='https://birdbrain1991.github.io/archive1886menu/'">
+      onclick="goToArchive()">
       <div class="hotspot-dot"></div>
       <div class="hotspot-line"></div>
       <div class="hotspot-label">ARCHIVE</div>
@@ -254,6 +278,7 @@ body{
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 'use strict';
 
@@ -461,6 +486,278 @@ window.addEventListener('pageshow',()=>{
     }));
   });
 });
+
+// ── ARCHIVE TRANSITION — knife cut ──
+function goToArchive(){
+  if(navigating) return;
+  navigating = true;
+
+  const fishSrc = document.getElementById('anatomy2').src;
+  const overlay = document.getElementById('fish-transition');
+  const fishImg = document.getElementById('fish-trans-img');
+  const fadeEl  = document.getElementById('fade-black');
+  const kc      = document.getElementById('knife-canvas');
+
+  // Show fish image
+  fishImg.src = fishSrc;
+  overlay.style.display = 'flex';
+
+  window._slashPts = [];
+  window._bladeTrail = [];
+  setTimeout(() => {
+    // Three.js for handle, Canvas 2D overlay for blade
+kc.style.display = 'block';
+kc.width  = window.innerWidth;
+kc.height = window.innerHeight;
+
+// ── THREE.JS — handle only ──
+const threeCanvas = document.createElement('canvas');
+threeCanvas.style.cssText = 'position:fixed;inset:0;z-index:499;pointer-events:none;';
+threeCanvas.width  = window.innerWidth;
+threeCanvas.height = window.innerHeight;
+document.body.appendChild(threeCanvas);
+
+const renderer = new THREE.WebGLRenderer({canvas:threeCanvas, antialias:true, alpha:true, premultipliedAlpha:false});
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(0x000000, 0);
+
+const scene  = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 100);
+camera.position.set(0, 2, 6);
+camera.lookAt(0, 0, -2);
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+const dLight = new THREE.DirectionalLight(0xd4a060, 1.2);
+dLight.position.set(3, 5, 5);
+scene.add(dLight);
+const dLight2 = new THREE.DirectionalLight(0x8090c0, 0.8);
+dLight2.position.set(-3, -2, 3);
+scene.add(dLight2);
+
+const knifeGroup = new THREE.Group();
+
+// Grip
+const gripGeo = new THREE.CylinderGeometry(0.26, 0.30, 1.8, 20);
+const gripMat = new THREE.MeshPhongMaterial({color:0x2c1e12, specular:0x4a3020, shininess:35, emissive:0x080604});
+const grip = new THREE.Mesh(gripGeo, gripMat);
+grip.position.y = -1.5;
+knifeGroup.add(grip);
+
+// Grain rings
+const grainMat = new THREE.MeshPhongMaterial({color:0x1a1008, shininess:10});
+[-0.6,-0.1,0.4,0.9].forEach(gy => {
+  const gg = new THREE.BoxGeometry(0.52, 0.03, 0.03);
+  const gm = new THREE.Mesh(gg, grainMat);
+  gm.position.y = -1.5 + gy;
+  knifeGroup.add(gm);
+});
+
+// Rivets
+const rivetMat = new THREE.MeshPhongMaterial({color:0x909090, specular:0xcccccc, shininess:120});
+[-0.8, 0.5].forEach(ry => {
+  const rg = new THREE.CylinderGeometry(0.06, 0.06, 0.62, 10);
+  const rm = new THREE.Mesh(rg, rivetMat);
+  rm.rotation.z = Math.PI/2;
+  rm.position.y = -1.5 + ry;
+  knifeGroup.add(rm);
+});
+
+// End cap
+const capGeo = new THREE.CylinderGeometry(0.28, 0.28, 0.12, 16);
+const capMat = new THREE.MeshPhongMaterial({color:0x787060, specular:0xb0a880, shininess:100});
+const cap = new THREE.Mesh(capGeo, capMat);
+cap.position.y = -2.45;
+knifeGroup.add(cap);
+
+// Bolster
+const bolsterGeo = new THREE.CylinderGeometry(0.32, 0.30, 0.28, 16);
+const bolsterMat = new THREE.MeshPhongMaterial({color:0x8a8470, specular:0xd0c8a0, shininess:130});
+const bolster = new THREE.Mesh(bolsterGeo, bolsterMat);
+bolster.position.y = -0.5;
+knifeGroup.add(bolster);
+
+knifeGroup.position.set(5, 2, 2);
+knifeGroup.rotation.x = -1.15;
+knifeGroup.rotation.z = 0.2;
+knifeGroup.rotation.y = -0.2;
+scene.add(knifeGroup);
+
+// ── CANVAS 2D — blade only ──
+const ctx2 = kc.getContext('2d');
+
+function drawBlade2D(hx, hy, tx, ty) {
+  // hx,hy = heel (bolster), tx,ty = tip (projected 3D tip)
+  const dx = tx - hx, dy = ty - hy;
+  const len = Math.sqrt(dx*dx + dy*dy) || 1;
+  const angle = Math.atan2(dy, dx);
+  const thick = Math.max(8, len * 0.14); // blade thickness proportional to length
+
+  ctx2.save();
+  ctx2.translate(hx, hy);
+  ctx2.rotate(angle);
+  ctx2.scale(0.45, 1); // flatten X — simulates blade pointing away from viewer
+
+  // Spine = top, edge = bottom, tip = left (negative x direction)
+  ctx2.beginPath();
+  ctx2.moveTo(0,  -thick*0.3);               // heel spine
+  ctx2.lineTo(-len*0.95,  -thick*0.08);      // spine near tip
+  ctx2.lineTo(-len, 0);                       // tip
+  ctx2.lineTo(-len*0.85,  thick*0.25);       // edge near tip
+  ctx2.quadraticCurveTo(-len*0.3, thick*0.7, 0, thick*0.45); // belly curve to heel edge
+  ctx2.closePath();
+
+  // Gradient across thickness
+  const bladeGrad = ctx2.createLinearGradient(0, -thick*0.3, 0, thick*0.7);
+  bladeGrad.addColorStop(0,   '#dce6ee'); // bright spine
+  bladeGrad.addColorStop(0.35,'#c0ccd6');
+  bladeGrad.addColorStop(0.7, '#8090a0');
+  bladeGrad.addColorStop(1,   '#505c68'); // dark edge
+  ctx2.fillStyle = bladeGrad;
+  ctx2.fill();
+
+  // Spine highlight line
+  ctx2.beginPath();
+  ctx2.moveTo(0, -thick*0.28);
+  ctx2.lineTo(-len*0.94, -thick*0.06);
+  ctx2.strokeStyle = 'rgba(240,250,255,0.8)';
+  ctx2.lineWidth = 1.8;
+  ctx2.stroke();
+
+  // Edge glint
+  ctx2.beginPath();
+  ctx2.moveTo(0, thick*0.38);
+  ctx2.quadraticCurveTo(-len*0.35, thick*0.65, -len*0.84, thick*0.22);
+  ctx2.strokeStyle = 'rgba(210,230,240,0.45)';
+  ctx2.lineWidth = 1;
+  ctx2.stroke();
+
+  ctx2.restore();
+}
+
+const dur   = 3920;
+const start = performance.now();
+window._slashPts = [];
+
+
+
+function animate(now) {
+  const p    = Math.min((now - start) / dur, 1);
+  const ease = p < 0.5 ? 2*p*p : -1+(4-2*p)*p;
+
+  // Move knife group
+  knifeGroup.position.x =  5   - ease * 10;
+  knifeGroup.position.y =  2   - ease * 2.5;
+  knifeGroup.position.z =  2   + ease * 0.8;
+  knifeGroup.rotation.x = -1.15;
+  knifeGroup.rotation.z =  0.2;
+
+  renderer.render(scene, camera);
+  // Motion blur on handle
+  const blurPx = (Math.sin(p * Math.PI) * 2.5).toFixed(1);
+  threeCanvas.style.filter = `blur(${blurPx}px)`;
+
+  // Project bolster position each frame for blade anchor
+  const bolsterWorld = new THREE.Vector3();
+  bolster.getWorldPosition(bolsterWorld);
+  const bNDC = bolsterWorld.clone().project(camera);
+  const bsx = ( bNDC.x + 1) / 2 * window.innerWidth;
+  const bsy = (-bNDC.y + 1) / 2 * window.innerHeight;
+
+  // Blade direction: knife travels right→left diagonally
+  // Blade points ~upper-left from bolster (away from handle)
+  const bladeAngle = 1.850;
+  const bladeLen   = Math.min(window.innerWidth, window.innerHeight) * 0.28;
+  const offset     = 68;
+  const startX = bsx - Math.cos(bladeAngle) * offset;
+  const startY = bsy - Math.sin(bladeAngle) * offset;
+  const tipX   = bsx + Math.cos(bladeAngle) * (bladeLen - offset);
+  const tipY   = bsy + Math.sin(bladeAngle) * (bladeLen - offset);
+
+  ctx2.clearRect(0, 0, kc.width, kc.height);
+
+  // Motion blur trail — 3 ghost copies following the blade
+  if(!window._bladeTrail) window._bladeTrail = [];
+  window._bladeTrail.push({sx:startX, sy:startY, tx:tipX, ty:tipY});
+  if(window._bladeTrail.length > 4) window._bladeTrail.shift();
+
+  // Draw ghosts — each slightly stretched/offset in motion direction
+  const trail = window._bladeTrail;
+  const ghostAlpha = [0.07, 0.13, 0.20];
+  const vel = Math.sin(p * Math.PI); // velocity factor peaks in middle
+
+  for(let i=0; i<trail.length-1; i++){
+    const age = (trail.length - 1 - i); // 3=oldest, 1=newest ghost
+    const stretch = 1 + age * vel * 0.45; // older = more stretched
+    const offsetX = (trail[i].sx - startX) * age * 0.18;
+    const offsetY = (trail[i].sy - startY) * age * 0.18;
+    ctx2.globalAlpha = ghostAlpha[i] || 0.07;
+    ctx2.save();
+    // Stretch along motion axis
+    ctx2.translate(trail[i].sx + offsetX * 0.5, trail[i].sy + offsetY * 0.5);
+    ctx2.scale(stretch, 1);
+    ctx2.translate(-(trail[i].sx + offsetX * 0.5), -(trail[i].sy + offsetY * 0.5));
+    drawBlade2D(trail[i].sx + offsetX, trail[i].sy + offsetY,
+                trail[i].tx + offsetX, trail[i].ty + offsetY);
+    ctx2.restore();
+  }
+  ctx2.globalAlpha = 1;
+  drawBlade2D(startX, startY, tipX, tipY);
+  // Note: angle is fixed constant — no rotation during animation
+  window._slashPts.push({x:tipX, y:tipY});
+  if(window._slashPts.length > 50) window._slashPts.shift();
+
+  if(window._slashPts.length > 2) {
+    const pts = window._slashPts;
+    for(let i=1; i<pts.length; i++){
+      const age = i / pts.length;
+      ctx2.strokeStyle = `rgba(235,235,215,${age*0.65*(1-p*0.4)})`;
+      ctx2.lineWidth = age * 3;
+      ctx2.lineCap = 'round';
+      ctx2.beginPath();
+      ctx2.moveTo(pts[i-1].x, pts[i-1].y);
+      ctx2.lineTo(pts[i].x,   pts[i].y);
+      ctx2.stroke();
+    }
+  }
+
+  // Split fish at midpoint
+  if(p > 0.5) {
+    const sliceOffset = (p-0.5)*2 * 65;
+    const fishEl = document.getElementById('fish-trans-img');
+    fishEl.style.clipPath = 'inset(0 0 50% 0)';
+    if(!document.getElementById('fish-half2')){
+      const fishRect = fishEl.getBoundingClientRect();
+      const h2 = fishEl.cloneNode();
+      h2.id = 'fish-half2';
+      h2.style.position = 'fixed';
+      h2.style.left   = fishRect.left + 'px';
+      h2.style.top    = fishRect.top  + 'px';
+      h2.style.width  = fishRect.width + 'px';
+      h2.style.height = fishRect.height + 'px';
+      h2.style.clipPath = 'inset(50% 0 0 0)';
+      h2.style.zIndex = '492';
+      h2.style.maxWidth = 'none';
+      document.body.appendChild(h2);
+    }
+    fishEl.style.transform = `translateY(${-sliceOffset}px)`;
+    const h2 = document.getElementById('fish-half2');
+    if(h2) h2.style.transform = `translateY(${sliceOffset}px)`;
+  }
+
+  if(p < 1) {
+    requestAnimationFrame(animate);
+  } else {
+    fadeEl.style.opacity = '1';
+    setTimeout(() => {
+      window.location.href = 'https://birdbrain1991.github.io/archive1886menu/';
+    }, 900);
+  }
+}
+requestAnimationFrame(animate);
+
+  }, 300); // brief pause to show fish first
+}
+
 </script>
 </body>
 </html>
